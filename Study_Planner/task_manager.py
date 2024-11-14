@@ -26,16 +26,13 @@ def get_tasks():
                 tasks.append(Task(row[0], row[1], row[2], row[3]))
     return tasks
 
-def delete_overdue_tasks():
-    tasks = get_tasks()  
-    current_date = datetime.now().date()  
-
-
-    valid_tasks = [task for task in tasks if task.due_date >= current_date]
+def delete_task_from_csv(task_name):
+    tasks = get_tasks()
+    valid_tasks = [task for task in tasks if task.name != task_name]
 
     with open(CSV_FILE, mode='w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(['name', 'due_date', 'priority', 'subject', 'completed'])
+        writer.writerow(['name', 'due_date', 'priority', 'subject', 'completed'])  # Write header
         for task in valid_tasks:
             writer.writerow([task.name, task.due_date.strftime('%Y-%m-%d'), task.priority, task.subject, task.completed])
 
