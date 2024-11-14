@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox, simpledialog, Frame, Label
 from db_handler import add_subject, get_subjects, delete_subject
-from task_manager import add_task, get_tasks, Task
+from task_manager import add_task, get_tasks, Task, delete_task_from_csv
 from timer import PomodoroTimer
 from notes_manager import NotesManager
 from countdown import exam_countdown
@@ -15,16 +15,11 @@ from ttkthemes import ThemedStyle
 class StudyPlannerApp:
     def __init__(self, root, notes_manager):
         self.root = root
-        self.root.title("Personalized Study Planner")
-        self.root.geometry("800x600")
-        self.root.configure(bg='black')
+        self.root.title("Personalized Study Planner") #title
+        self.root.geometry("800x600") # app dimensions
+        self.root.configure(bg='black') #background color
 
-        # Load background image
-        self.bg_image = tk.PhotoImage(file=r"C:\Users\arobl\PycharmProjects\Study_Planner\bg.png")
-        self.bg_label = tk.Label(self.root, image=self.bg_image)
-        self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
-
-        self.notes_manager = notes_manager
+        self.notes_manager = notes_manager #initialising notes manager from other file to here
 
         # Create a base directory for study resources
         self.base_dir = "study_resources"
@@ -49,6 +44,7 @@ class StudyPlannerApp:
         tk.Button(nav_frame, text="Add Task", command=lambda: self.show_frame("add_task")).pack(fill=tk.X, padx=5, pady=5)
         tk.Button(nav_frame, text="Start Pomodoro Timer", command=lambda: self.show_frame("start_timer")).pack(fill=tk.X, padx=5, pady=5)
         tk.Button(nav_frame, text="Delete Subject", command=lambda: self.show_frame("delete_subject")).pack(fill=tk.X, padx=5, pady=5)
+        tk.Button(nav_frame, text="Delete Task", command=lambda: self.show_frame("delete_task")).pack(fill=tk.X, padx=5, pady=5)
         tk.Button(nav_frame, text="Exam Countdown", command=lambda: self.show_frame("exam_countdown")).pack(fill=tk.X, padx=5, pady=5)
         tk.Button(nav_frame, text="View Tasks", command=lambda: self.show_frame("view_tasks")).pack(fill=tk.X, padx=5, pady=5)
         tk.Button(nav_frame, text="View Subjects", command=lambda: self.show_frame("view_subjects")).pack(fill=tk.X, padx=5, pady=5)
@@ -60,6 +56,7 @@ class StudyPlannerApp:
             "add_task": self.create_add_task_frame(),
             "start_timer": self.create_start_timer_frame(),
             "delete_subject": self.create_delete_subject_frame(),
+            "delete_task": self.create_delete_task_frame(),
             "exam_countdown": self.create_exam_countdown_frame(),
             "view_tasks": self.create_view_tasks_frame(),
             "view_subjects": self.create_view_subjects_frame(),
@@ -144,6 +141,26 @@ class StudyPlannerApp:
             tk.Label(frame, text="No tasks found.", bg='black', fg='darkgrey').pack(pady=5)
 
         return frame
+    
+    def create_delete_task_frame(self):
+        frame = Frame(self.display_frame, bg='black')
+        tk.Label(frame, text="Delete Task", bg='black', fg='darkgrey').pack(pady=10)
+
+        # List of tasks
+        self.task_listbox = tk.Listbox(frame, bg='darkgrey', fg='black')
+        self.task_listbox.pack(pady=10, fill=tk.BOTH, expand=True)
+
+        # Load tasks into the listbox
+        self.load_tasks_into_listbox()
+
+        tk.Button(frame, text="Delete Selected Task", command=self.delete_task).pack(pady=5)
+        return frame
+
+    def load_tasks_into_listbox(self):
+        self.task_listbox.delete(0, tk.END)  # Clear the listbox
+        tasks = get_tasks()
+        for task in tasks:
+            self.task_listbox.insert(tk.END, f"{task.name} (Due: {task.due_date}, Priority: {task.priority})")
 
     def create_view_subjects_frame(self):
         frame = Frame(self.display_frame, bg='black')
@@ -180,15 +197,24 @@ class StudyPlannerApp:
         subject_name = self.subject_name_entry.get()
         hours_per_week = self.hours_per_week_entry.get()
         difficulty = self.difficulty_entry.get()
-    
-        if subject_name and hours_per_week and difficulty:
-            add_subject(subject_name, int(hours_per_week), difficulty)
         
+        if subject_name and hours_per_week and difficulty:
+            # Check if the subject already exists
+            existing_subjects = get_subjects()
+            if any(subject[1].lower() == subject_name.lower() for subject in existing_subjects):
+                messagebox.showwarning("Duplicate Subject", f"The subject '{subject_name}' already exists. Please try a different name.")
+                return  # Exit the method if the subject already exists
+
+            # Add the new subject
+            add_subject(subject_name, int(hours_per_week), difficulty)
+            
+            # Create a folder for the new subject
             subject_folder = os.path.join(self.base_dir, subject_name)
             os.makedirs(subject_folder, exist_ok=True)
-        
+            
             messagebox.showinfo("Success", f"Added {subject_name} successfully!")
-        
+            
+            # Refresh the view of subjects
             self.frames["view_subjects"] = self.create_view_subjects_frame()
         else:
             messagebox.showwarning("Input Error", "Please fill in all fields.")
@@ -198,16 +224,24 @@ class StudyPlannerApp:
         due_date = self.task_due_date_entry.get_date()
         priority = self.task_priority_entry.get()
         subject = self.task_subject_entry.get()
-    
+        
         if task_name and priority and subject:
+            # Check if the task already exists
+            existing_tasks = get_tasks()
+            if any(task.name.lower() == task_name.lower() and task.due_date == due_date for task in existing_tasks):
+                messagebox.showwarning("Duplicate Task", f"The task '{task_name}' with due date '{due_date}' already exists. Please try a different task.")
+                return  # Exit the method if the task already exists
+
+            # Create a new task and add it
             task = Task(task_name, due_date, priority, subject)
             add_task(task)
             messagebox.showinfo("Success", f"Added task: {task_name}")
-        
+            
+            # Refresh the view of tasks
             self.frames["view_tasks"] = self.create_view_tasks_frame()
         else:
             messagebox.showwarning("Input Error", "Please fill in all fields.")
-
+        
     def start_timer(self):
         if not self.timer_running:
             self.timer_running = True
@@ -247,13 +281,47 @@ class StudyPlannerApp:
             self.frames["view_subjects"] = self.create_view_subjects_frame()
         else:
             messagebox.showwarning("Error", "Subject not found.")
+            
+    def delete_task(self):
+        selected_task_index = self.task_listbox.curselection()
+        if not selected_task_index:
+            messagebox.showwarning("Selection Error", "Please select a task to delete.")
+            return
+
+        selected_task = self.task_listbox.get(selected_task_index)
+        task_name = selected_task.split(" (")[0]  # Extract the task name from the listbox entry
+
+        # Get all tasks to find the corresponding task to delete
+        tasks = get_tasks()
+        task_to_delete = next((task for task in tasks if task.name == task_name), None)
+
+        if task_to_delete:
+            # Delete the task from the CSV
+            delete_task_from_csv(task_to_delete.name)
+            messagebox.showinfo("Success", f"Deleted task: {task_name}")
+            self.load_tasks_into_listbox()  # Refresh the listbox
+        else:
+            messagebox.showwarning("Error", "Task not found.")
 
 
     def exam_countdown(self):
-        exam_date_str = simpledialog.askstring("Input", "Enter exam date (YYYY-MM-DD):")
-        exam_date = datetime.datetime.strptime(exam_date_str, "%Y-%m-%d").date()
-        days_left = exam_countdown(exam_date)
-        messagebox.showinfo("Countdown", f"Days until exam: {days_left}")
+        while True:
+            exam_date_str = simpledialog.askstring("Input", "Enter exam date (YYYY-MM-DD):")
+            if exam_date_str is None:  # User pressed cancel
+                return
+            
+            try:
+                exam_date = datetime.datetime.strptime(exam_date_str, "%Y-%m-%d").date()
+                today = datetime.date.today()
+                
+                if exam_date < today:
+                    messagebox.showwarning("Invalid Date", "The exam date cannot be in the past. Please enter a valid future date.")
+                else:
+                    days_left = exam_countdown(exam_date)
+                    messagebox.showinfo("Countdown", f"Days until exam: {days_left}")
+                    break  # Exit the loop if a valid date is entered
+            except ValueError:
+                messagebox.showwarning("Input Error", "Please enter the date in the correct format (YYYY-MM-DD).")
         
 
 
