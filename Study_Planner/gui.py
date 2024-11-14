@@ -4,7 +4,6 @@ from db_handler import add_subject, get_subjects, delete_subject
 from task_manager import add_task, get_tasks, Task
 from timer import PomodoroTimer
 from notes_manager import NotesManager
-from habit_tracker import HabitTracker
 from countdown import exam_countdown
 from tkcalendar import Calendar
 import datetime
@@ -14,7 +13,7 @@ import subprocess
 from ttkthemes import ThemedStyle
 
 class StudyPlannerApp:
-    def __init__(self, root, notes_manager, habit_tracker, ):
+    def __init__(self, root, notes_manager):
         self.root = root
         self.root.title("Personalized Study Planner")
         self.root.geometry("800x600")
@@ -26,7 +25,6 @@ class StudyPlannerApp:
         self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
 
         self.notes_manager = notes_manager
-        self.habit_tracker = habit_tracker
 
         # Create a base directory for study resources
         self.base_dir = "study_resources"
@@ -264,6 +262,5 @@ if __name__ == "__main__":
     style = ThemedStyle(root)
     style.set_theme("black")
     notes_manager = NotesManager()
-    habit_tracker = HabitTracker()
-    app = StudyPlannerApp(root, notes_manager, habit_tracker,)
+    app = StudyPlannerApp(root, notes_manager)
     root.mainloop()
