@@ -119,8 +119,22 @@ class StudyPlannerApp:
     def create_delete_subject_frame(self):
         frame = Frame(self.display_frame, bg='black')
         tk.Label(frame, text="Delete Subject", bg='black', fg='darkgrey').pack(pady=10)
-        tk.Button(frame, text="Delete Subject", command=self.delete_subject).pack(pady=5)
+
+        # List of subjects
+        self.subject_listbox = tk.Listbox(frame, bg='darkgrey', fg='black')
+        self.subject_listbox.pack(pady=10, fill=tk.BOTH, expand=True)
+
+        # Load subjects into the listbox
+        self.load_subjects_into_listbox()
+
+        tk.Button(frame, text="Delete Selected Subject", command=self.delete_subject).pack(pady=5)
         return frame
+
+    def load_subjects_into_listbox(self):
+        self.subject_listbox.delete(0, tk.END)  # Clear the listbox
+        subjects = get_subjects()
+        for subject in subjects:
+            self.subject_listbox.insert(tk.END, f"{subject[1]} (Hours/Week: {subject[2]}, Difficulty: {subject[3]})")
 
     def create_exam_countdown_frame(self):
         frame = Frame(self.display_frame, bg='black')
@@ -267,18 +281,23 @@ class StudyPlannerApp:
         self.timer_label.config(text=f"{minutes:02}:{seconds:02}")
 
     def delete_subject(self):
+        selected_subject_index = self.subject_listbox.curselection()
+        if not selected_subject_index:
+            messagebox.showwarning("Selection Error", "Please select a subject to delete.")
+            return
+
+        selected_subject = self.subject_listbox.get(selected_subject_index)
+        subject_name = selected_subject.split(" (")[0]  # Extract the subject name from the listbox entry
+
+        # Get all subjects to find the corresponding subject to delete
         subjects = get_subjects()
-        subject_names = [subject[1] for subject in subjects]
-    
-        subject_name = simpledialog.askstring("Input", "Select subject to delete:", initialvalue=subject_names[0])
-    
-        subject_id = next((subject[0] for subject in subjects if subject[1] == subject_name), None)
-    
-        if subject_id:
-            delete_subject(subject_id)
-            messagebox.showinfo("Success", f"Deleted {subject_name} successfully.")
-        
-            self.frames["view_subjects"] = self.create_view_subjects_frame()
+        subject_to_delete = next((subject for subject in subjects if subject[1] == subject_name), None)
+
+        if subject_to_delete:
+            # Delete the subject from the CSV
+            delete_subject(subject_to_delete[0])  # Pass the subject ID to delete
+            messagebox.showinfo("Success", f"Deleted subject: {subject_name}")
+            self.load_subjects_into_listbox()  # Refresh the listbox
         else:
             messagebox.showwarning("Error", "Subject not found.")
             
